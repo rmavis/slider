@@ -1,9 +1,65 @@
 /*
   SLIDER
-  This is a dumb class for building a slideshow.
-  It does very little. It's all configured in your HTML and CSS.
+
+  This is a simple class for building a slideshow. It does very
+  little -- all styling, animation, etc, is handled in the HTML and
+  CSS.
 
 
+  USAGE
+
+  Initialize a new slider by passing Slider an object:
+
+  var slider = new Slider({
+    slider: element,
+    slides: [elements],
+    buttons: {
+      fw: element,
+      bk: element,
+    },
+    pager: {
+      wrap: element,
+      dotClass: string,
+    },
+    align: "(left|center|right)",
+    autoslide: int,
+  });
+
+  Slider will add event listeners to the `slider` and `button`
+  elements. If `pager` is present, it will also create clickable
+  elements that change the slider state.
+
+  Alignment of the current slide is set by the `align` property. If
+  none of is given, `center` will be assumed.
+
+  If the `autoslide` property is present, it must be the amount of
+  milliseconds to wait before automatically advancing the slides.
+
+  Click-and-drag functionality is handled by an outside library. For
+  Swiper, an initialization could be like:
+
+  new Swiper({
+    target: slider_wrap_elem,
+    onDrag: function (delta) {
+      slider_instance.dragBy(delta.x.inc);
+    },
+    onEnd: function (delta) {
+      if (delta.v.run == 'left') {
+        slider_instance.goFw();
+      }
+      else {
+        slider_instance.goBk();
+      }
+    },
+  });
+
+
+  DEPENDENCIES
+
+  None.
+
+
+  DETAILS
 
   Sample HTML:
 
@@ -17,16 +73,14 @@
         <h2 class="slide-txt">Slide 3</h2>
       </div>
     </div>
+
     <div id="banner-slides-pager"></div>
+
+    <div id="banner-controls-wrap">
+      <div class="banner-slides-control-btn" id="banner-slides-control-bk">Backward</div>
+      <div class="banner-slides-control-btn" id="banner-slides-control-fw">Forward</div>
+    </div>
   </div>
-
-
-  <div id="banner-controls-wrap">
-    <div class="banner-slides-control-btn" id="banner-slides-control-bk">Backward</div>
-    <div class="banner-slides-control-btn" id="banner-slides-control-fw">Forward</div>
-  </div>
-
-
 
   Sample CSS:
 
@@ -83,58 +137,25 @@
     background-color: #FF00FF;
   }
 
-
-
-  To initialize the slideshow, pass an object to Slider:
-
-  var sldr = new Slider({
-    element: document.getElementById('banner-slides-slider'),
-    slidesClass: 'banner-slide',
-    btnFw: document.getElementById('banner-slides-control-fw'),
-    btnBk: document.getElementById('banner-slides-control-bk'),
-    pager: document.getElementById('banner-slides-pager'),
-    pagerItemClass: 'banner-pager-dot',
-    counter: document.getElementById('banner-slides-counter'),
-    counterItemClass: 'banner-counter-item',
-    autoslide: 3500
-  });
-
-
-  Optionally, if Swiper.js is also present, you can add the "swiper" attribute
-  to the Slider's parameter:
-    swiper: document.getElementById('banner-slides-wrap')
-
   To remove the stutter/stalls of incremental dragging, add a style rule to the wrap:
     #banner-slides-wrap[draggable] #banner-slides-slider {
         transition: none;
     }
 
+    #HERE
 
-  Slider collects the slides -- specified by the 'slidesClass' -- under the 'element',
-  adds event listeners to the 'btnFw' and 'btnBk' elements,
-  optionally creates a string of callers in the 'pager' element and gives them the 'pagerItemClass',
-  also optionally creates a three-item counter display (current, slash, total) and gives those
-  the class specified in 'counterItemClass', and sets a counter to the first element in the
-  'element'.
 
-  When the forward- or btnBk is clicked, the counter is incremented or decremented,
-  the 'left' value of the 'element' is set to -(counter * 100)%,
-  and the corresponding caller in the 'pager' is made 'active',
-  and the displayed counter value is updated.
-  The work of animating the transition is offloaded to the CSS transition.
-
-  If 'autoslide' is specified, its value is the number of milliseconds that will be passed to
-  setInterval(). Slider's slideForward() will be called on that interval.
-
-  If the 'swiper' is specified, then a new instance of Swiper is created. The callback method
-  from Swiper is a method similar to Slider's own handleEvent() -- it reacts according to the
-  object Swiper returns.
-
+  TODO
+  - more documentation
  */
 
 
 
 function Slider(args) {
+
+    /*
+     * Init, config, etc.
+     */
 
     var $conf = { }, // Retains all the info passed in `args`.
         $elems = { },  // Contains elements created in-class.
@@ -146,6 +167,8 @@ function Slider(args) {
 
 
 
+    // The return of this function will be merged with the `args`
+    // object, and the result of that merge will become `$conf`.
     function getDefaultConf() {
         return {
             slider: null,
@@ -163,26 +186,14 @@ function Slider(args) {
             keyboardEvents: null,
             align: 'center',
             autoslide: null,
-            swiper: null,
         };
     }
 
 
-
-    function getStartState() {
-        return {
-            buttons: {
-                forward: null,
-                backward: null,
-            },
-            swiper: null,
-        };
-    }
-
-
+    // Public methods.
     function getPublicProperties() {
         return {
-            goFwd: slideForward,
+            goFw: slideForward,
             goBk: slideBackward,
             goTo: makeActiveSlide,
             dragBy: transformByIncrement,
@@ -197,27 +208,17 @@ function Slider(args) {
     function init(args) {
         $conf = mergeObjects(getDefaultConf(), args);
 
+        // The `slider` property is required.
         if ($conf.slider) {
             $state.activeIndex = 0;
 
-            // For the buttons.
             if ($conf.buttons) {
                 addButtonListeners();
             }
 
-            // For the pager.
             if (($conf.pager) && ($conf.pager.wrap) && ($conf.pager.dotClass)) {
                 $elems.dots = buildPager(args.pager.wrap);
                 addPagerListeners();
-            }
-
-            // For the swiper.
-            if (args.swiper) {
-                $conf.swiper = new Swiper({
-                    element: $conf.slider,
-                    onDrag: handleSwipeEvent,  // #HERE
-                    onEnd: handleSwipeEvent  // #HERE
-                });
             }
 
             // For the counter.
@@ -229,10 +230,8 @@ function Slider(args) {
             //     buildCounter();
             // }
 
-            // Auto-sliding.
             if ($conf.autoslide) {
                 startAutoslide();
-                // this.autoslideSecs = parseInt(args.autoslide) || 3500;
             }
 
             addMouseListeners();
@@ -243,7 +242,6 @@ function Slider(args) {
 
             alignToActiveSlide();
         }
-
         else {
             console.log("SLIDER ERROR: cannot `init` without an `element`.");
         }
@@ -274,25 +272,25 @@ function Slider(args) {
     }
 
 
-    function buildCounter() {
-        var cCrrnt = document.createElement('div');
-        var cSlash = document.createElement('div');
-        var cTotal = document.createElement('div');
+    // function buildCounter() {
+    //     var cCrrnt = document.createElement('div');
+    //     var cSlash = document.createElement('div');
+    //     var cTotal = document.createElement('div');
 
-        cCrrnt.className = this.counterItemClass;
-        cSlash.className = this.counterItemClass;
-        cTotal.className = this.counterItemClass;
+    //     cCrrnt.className = this.counterItemClass;
+    //     cSlash.className = this.counterItemClass;
+    //     cTotal.className = this.counterItemClass;
 
-        cCrrnt.innerHTML = ($state.activeIndex + 1);
-        cSlash.innerHTML = '/';
-        cTotal.innerHTML = $conf.slides.length;
+    //     cCrrnt.innerHTML = ($state.activeIndex + 1);
+    //     cSlash.innerHTML = '/';
+    //     cTotal.innerHTML = $conf.slides.length;
 
-        this.counterCase.appendChild(cCrrnt);
-        this.counterCase.appendChild(cSlash);
-        this.counterCase.appendChild(cTotal);
+    //     this.counterCase.appendChild(cCrrnt);
+    //     this.counterCase.appendChild(cSlash);
+    //     this.counterCase.appendChild(cTotal);
 
-        this.counter = cCrrnt;
-    }
+    //     this.counter = cCrrnt;
+    // }
 
 
 
@@ -407,25 +405,35 @@ function Slider(args) {
         evt = checkEvent(evt);
 
         if (evt.keyCode == 37) {  // The left arrow key.
+            evt.preventDefault();
             slideBackward();
         }
         else if (evt.keyCode == 39) {  // The right arrow key.
+            evt.preventDefault();
             slideForward();
         }
 
-        if (this.autoslide) {resetAutoslide();}
+        if ($conf.autoslide) {
+            resetAutoslide();
+        }
     }
 
 
     function handleForwardButtonClick(evt) {
         slideForward();
-        if ($conf.autoslide) {resetAutoslide();}
+
+        if ($conf.autoslide) {
+            resetAutoslide();
+        }
     }
 
 
     function handleBackwardButtonClick(evt) {
         slideBackward();
-        if ($conf.autoslide) {resetAutoslide();}
+
+        if ($conf.autoslide) {
+            resetAutoslide();
+        }
     }
 
 
@@ -433,7 +441,10 @@ function Slider(args) {
         evt = checkEvent(evt);
         var caller = getCallerFromEvent(evt);
         makeActiveSlide(parseInt(caller.getAttribute('slide-ref')));
-        if ($conf.autoslide) {resetAutoslide();}
+
+        if ($conf.autoslide) {
+            resetAutoslide();
+        }
     }
 
 
@@ -451,40 +462,13 @@ function Slider(args) {
     }
 
 
-    function handleSwipeEvent(swipeobj) {
-        if (swipeobj.swipeDir) {
-            if (swipeobj.swipeDir == 'left') {
-                slideForward();
-            }
-            else if (swipeobj.swipeDir == 'right') {
-                slideBackward();
-            }
-
-            if (this.autoslide) {resetAutoslide();}
-        }
-
-        else if (swipeobj.endT) {
-            alignToActiveSlide();
-            if (this.autoslide) {resetAutoslide();}
-        }
-
-
-        else if ((swipeobj.magDir == 'left') || (swipeobj.magDir == 'right')) {
-            if (this.autoslide) {stopAutoslide();}
-            transformByIncrement(swipeobj.runX);
-        }
-    }
-
-
-
-
     function getCallerFromEvent(evt) {
         var caller = (evt.target) ? evt.target : evt.scrElement;
 
-        while ((caller != document.body) &&
+        while ((caller.className != $conf.pager.dotClass) &&
                (caller != $conf.buttons.fw) &&
                (caller != $conf.buttons.bk) &&
-               (caller.className != $conf.pager.dotClass)) {
+               (caller != document.body)) {
             caller = caller.parentNode;
         }
 
