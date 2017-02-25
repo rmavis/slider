@@ -34,7 +34,7 @@
              transition: transform 0.6s ease;
          }
 
-         #banner-slides-slider[draggable] {
+         #banner-slides-wrap[draggable] > #banner-slides-slider {
              transition: none;
          }
 
@@ -88,7 +88,7 @@
 
          .banner-pager-dot[slider-active-pager-dot=y] {
              background-color: #00FFFF;
-         }
+             }
         </style>
 
         <script type="text/javascript" src="slider.js"></script>
@@ -97,7 +97,7 @@
         <script>
          function init() {
              var slider_wrap = document.getElementById('banner-slides-slider'),
-             slides = slider_wrap.getElementsByClassName('banner-slide');
+                 slides = slider_wrap.getElementsByClassName('banner-slide');
 
              var sldr = new Slider({
                  slider: slider_wrap,
@@ -114,16 +114,21 @@
              });
 
              var swpr = new Swiper({
-                 target: slider_wrap,
+                 target: document.getElementById('banner-slides-wrap'),
                  onDrag: function (delta) {
                      sldr.dragBy(delta.x.inc);
                  },
                  onEnd: function (delta) {
-                     if (delta.v.run == 'left') {
-                         sldr.goFw();
+                     if (delta.v.over) {
+                         if (delta.v.run == 'left') {
+                             sldr.goFw();
+                         }
+                         else {
+                             sldr.goBk();
+                         }
                      }
                      else {
-                         sldr.goBk();
+                         sldr.align();
                      }
                  },
              });
@@ -149,9 +154,9 @@
                         <h2 class="slide-txt">Slide 3</h2>
                     </div>
                 </div>
-
-                <div id="banner-slides-pager"></div>
             </div>
+
+            <div id="banner-slides-pager"></div>
 
             <div id="banner-controls-wrap">
                 <div class="banner-slides-control-btn" id="banner-slides-control-bk">Backward</div>

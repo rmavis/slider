@@ -372,6 +372,7 @@ function Swiper(params) {
 
     function handleTouchStart(evt) {
         evt = checkEvent(evt);
+        evt.preventDefault();
         startSwipe(evt.changedTouches[0]);
     }
 

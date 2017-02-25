@@ -196,6 +196,7 @@ function Slider(args) {
             goFw: slideForward,
             goBk: slideBackward,
             goTo: makeActiveSlide,
+            align: alignToActiveSlide,
             dragBy: transformByIncrement,
             stopAutoslide: stopAutoslide,
             startAutoslide: startAutoslide,
