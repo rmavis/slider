@@ -141,6 +141,7 @@ function Slider(args) {
         $state = {  // State info.
             activeIndex: null,
             autoslideId: null,
+            currentX: null,
         };
 
 
@@ -179,10 +180,15 @@ function Slider(args) {
     }
 
 
-    // #HERE
     function getPublicProperties() {
         return {
-            // stop: stopTracking,
+            goFwd: slideForward,
+            goBk: slideBackward,
+            goTo: makeActiveSlide,
+            dragBy: transformByIncrement,
+            stopAutoslide: stopAutoslide,
+            startAutoslide: startAutoslide,
+            resetAutoslide: resetAutoslide,
         };
     }
 
@@ -465,7 +471,7 @@ function Slider(args) {
 
         else if ((swipeobj.magDir == 'left') || (swipeobj.magDir == 'right')) {
             if (this.autoslide) {stopAutoslide();}
-            incrementalSlide(swipeobj.runX);
+            transformByIncrement(swipeobj.runX);
         }
     }
 
@@ -526,14 +532,16 @@ function Slider(args) {
 
     function alignToActiveSlide() {
         if ($conf.align == 'left') {
-            setTargetTransform($conf.slider, getLeftAlignedX($state.activeIndex));
+            $state.currentX = getLeftAlignedX($state.activeIndex);
         }
         else if ($conf.align == 'right') {
-            setTargetTransform($conf.slider, getRightAlignedX($state.activeIndex));
+            $state.currentX = getRightAlignedX($state.activeIndex);
         }
         else { // center
-            setTargetTransform($conf.slider, getCenterAlignedX($state.activeIndex));
+            $state.currentX = getCenterAlignedX($state.activeIndex);
         }
+
+        setTargetTransform($conf.slider, $state.currentX);
 
         if ($elems.dots) {
             for (var o = 0, m = $elems.dots.length; o < m; o++) {
@@ -553,10 +561,9 @@ function Slider(args) {
 
 
 
-    // #HERE
-    function incrementalSlide(runX) {
-        var pctX = (-($state.activeIndex * 100) + Math.round((runX / this.slideWidth) * 100));
-        setTargetLeftPosition(pctX);
+    function transformByIncrement(x) {
+        $state.currentX += x;
+        setTargetTransform($conf.slider, $state.currentX);
     }
 
 
@@ -643,5 +650,5 @@ function Slider(args) {
 
 
     // This needs to stay down here.
-    init(args);
+    return init(args);
 }
