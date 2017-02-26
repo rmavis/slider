@@ -193,6 +193,7 @@ function Slider(args) {
     // Public methods.
     function getPublicProperties() {
         return {
+            // Functions.
             goFw: slideForward,
             goBk: slideBackward,
             goTo: makeActiveSlide,
@@ -201,6 +202,10 @@ function Slider(args) {
             stopAutoslide: stopAutoslide,
             startAutoslide: startAutoslide,
             resetAutoslide: resetAutoslide,
+            append: appendSlide,
+            prepend: prependSlide,
+            addAt: addSlideAtIndex,
+            removeSlide: removeSlide,
         };
     }
 
@@ -210,16 +215,22 @@ function Slider(args) {
         $conf = mergeObjects(getDefaultConf(), args);
 
         // The `slider` property is required.
-        if ($conf.slider) {
+        if (($conf.slider) && ($conf.slides)) {
+            if ($conf.slides.constructor !== Array) {
+                $conf.slides = makeEnumerableArray($conf.slides);
+            } 
+
             $state.activeIndex = 0;
 
             if ($conf.buttons) {
                 addButtonListeners();
             }
 
-            if (($conf.pager) && ($conf.pager.wrap) && ($conf.pager.dotClass)) {
-                $elems.dots = buildPager(args.pager.wrap);
-                addPagerListeners();
+            if (($conf.pager) &&
+                ($conf.pager.wrap) &&
+                ($conf.pager.dotClass)) {
+                $elems.pager = $conf.pager.wrap;
+                $elems.dots = buildPager($conf.pager.wrap);
             }
 
             // For the counter.
@@ -259,6 +270,8 @@ function Slider(args) {
      */
 
     function buildPager(wrap) {
+        wrap.innerHTML = '';
+
         var dots = [ ];
 
         for (var o = 0, m = $conf.slides.length; o < m; o++) {
@@ -268,6 +281,8 @@ function Slider(args) {
             wrap.appendChild(dot);
             dots.push(dot);
         }
+
+        addPagerListeners(dots);
 
         return dots;
     }
@@ -331,6 +346,69 @@ function Slider(args) {
     }
 
 
+    function addSlideAtIndex(index, elem) {
+        var _slides = [ ],
+            append = true;
+
+        for (var o = 0, m = $conf.slides.length; o < m; o++) {
+            if (o == index) {
+                $conf.slider.insertBefore(elem, $conf.slides[o]);
+                _slides.push(elem);
+                append = false;
+            }
+            _slides.push($conf.slides[o]);
+        }
+
+        if (append) {
+            $conf.slider.insertBefore(elem, $conf.slides[o]);
+            _slides.push(elem);
+        }
+
+        if (index < $state.activeIndex) {
+            $state.activeIndex += 1;
+        }
+
+        $conf.slides = _slides;
+        $elems.dots = buildPager($conf.pager.wrap);
+        alignToActiveSlide();
+    }
+
+
+    function appendSlide(elem) {
+        $conf.slides.push(elem);
+        $conf.slider.appendChild(elem);
+        $elems.dots = buildPager($conf.pager.wrap);
+        alignToActiveSlide();
+    }
+
+
+    function prependSlide(elem) {
+        $conf.slides.unshift(elem);
+        $conf.slider.insertBefore(elem, $conf.slider.firstChild);
+        $elems.dots = buildPager($conf.pager.wrap);
+        $state.activeIndex += 1;
+        alignToActiveSlide();
+    }
+
+
+    function removeSlide(index) {
+        var _slides = [ ];
+
+        for (var o = 0, m = $conf.slides.length; o < m; o++) {
+            if (o == index) {
+                $conf.slider.removeChild($conf.slider.children[o]);
+            }
+            else {
+                _slides.push($conf.slides[o]);
+            }
+        }
+
+        $conf.slides = _slides;
+        $elems.dots = buildPager($conf.pager.wrap);
+        alignToActiveSlide();
+    }
+
+
 
 
 
@@ -358,16 +436,16 @@ function Slider(args) {
     }
 
 
-    function addPagerListeners() {
-        for (var o = 0, m = $elems.dots.length; o < m; o++) {
-            $elems.dots[o].addEventListener('click', handlePagerClick, false);
+    function addPagerListeners(dots) {
+        for (var o = 0, m = dots.length; o < m; o++) {
+            dots[o].addEventListener('click', handlePagerClick, false);
         }
     }
 
 
-    function removePagerListeners() {
-        for (var o = 0, m = $elems.dots.length; o < m; o++) {
-            $elems.dots[o].removeEventListener('click', handlePagerClick);
+    function removePagerListeners(dots) {
+        for (var o = 0, m = dots.length; o < m; o++) {
+            dots[o].removeEventListener('click', handlePagerClick);
         }
     }
 
@@ -598,6 +676,17 @@ function Slider(args) {
     /*
      * Utility functions.
      */
+
+    function makeEnumerableArray(obj) {
+        var arr = [ ];
+
+        for (var o = 0, m = obj.length; o < m; o++) {
+            arr.push(obj[o]);
+        }
+
+        return arr;
+    }
+
 
     function mergeObjects(obj1, obj2) {
         if ($conf.log) {

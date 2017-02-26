@@ -95,11 +95,13 @@
         <script type="text/javascript" src="swiper.js"></script>
 
         <script>
+         var sldr, swpr;
+
          function init() {
              var slider_wrap = document.getElementById('banner-slides-slider'),
                  slides = slider_wrap.getElementsByClassName('banner-slide');
 
-             var sldr = new Slider({
+             sldr = new Slider({
                  slider: slider_wrap,
                  slides: slides,
                  buttons: {
@@ -113,7 +115,7 @@
                  align: 'center',
              });
 
-             var swpr = new Swiper({
+             swpr = new Swiper({
                  target: document.getElementById('banner-slides-wrap'),
                  onDrag: function (delta) {
                      sldr.dragBy(delta.x.inc);
@@ -133,6 +135,16 @@
                  },
              });
          }
+
+         var slide_a = document.createElement('div');
+         slide_a.className = "banner-slide slide-4";
+         slide_a.innerHTML = '<h2 class="slide-txt">Slide 4</h2>';
+
+         var slide_b = document.createElement('div');
+         slide_b.className = "banner-slide slide-5";
+         slide_b.innerHTML = '<h2 class="slide-txt">Slide 5</h2>';
+
+
 
          window.onload = init;
         </script>
