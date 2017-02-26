@@ -193,7 +193,6 @@ function Slider(args) {
     // Public methods.
     function getPublicProperties() {
         return {
-            // Functions.
             goFw: slideForward,
             goBk: slideBackward,
             goTo: makeActiveSlide,
@@ -347,30 +346,28 @@ function Slider(args) {
 
 
     function addSlideAtIndex(index, elem) {
-        var _slides = [ ],
-            append = true;
+        if ($conf.slides.length < index) {
+            appendSlide(elem);
+        }
+        else {
+            var _slides = [ ];
 
-        for (var o = 0, m = $conf.slides.length; o < m; o++) {
-            if (o == index) {
-                $conf.slider.insertBefore(elem, $conf.slides[o]);
-                _slides.push(elem);
-                append = false;
+            for (var o = 0, m = $conf.slides.length; o < m; o++) {
+                if (o == index) {
+                    $conf.slider.insertBefore(elem, $conf.slides[o]);
+                    _slides.push(elem);
+                }
+                _slides.push($conf.slides[o]);
             }
-            _slides.push($conf.slides[o]);
-        }
 
-        if (append) {
-            $conf.slider.insertBefore(elem, $conf.slides[o]);
-            _slides.push(elem);
-        }
+            if (index <= $state.activeIndex) {
+                $state.activeIndex += 1;
+            }
 
-        if (index < $state.activeIndex) {
-            $state.activeIndex += 1;
+            $conf.slides = _slides;
+            $elems.dots = buildPager($conf.pager.wrap);
+            alignToActiveSlide();
         }
-
-        $conf.slides = _slides;
-        $elems.dots = buildPager($conf.pager.wrap);
-        alignToActiveSlide();
     }
 
 
@@ -383,11 +380,7 @@ function Slider(args) {
 
 
     function prependSlide(elem) {
-        $conf.slides.unshift(elem);
-        $conf.slider.insertBefore(elem, $conf.slider.firstChild);
-        $elems.dots = buildPager($conf.pager.wrap);
-        $state.activeIndex += 1;
-        alignToActiveSlide();
+        addSlideAtIndex(0, elem);
     }
 
 
