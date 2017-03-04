@@ -185,6 +185,7 @@ function Slider(args) {
             // counterItemClass: null,
             keyboardEvents: null,
             align: 'center',
+            cycle: true,
             autoslide: null,
         };
     }
@@ -250,6 +251,8 @@ function Slider(args) {
             if ($conf.keyboardEvents) {
                 addKeyboardListeners();
             }
+
+            addResizeListeners();
 
             alignToActiveSlide();
         }
@@ -465,6 +468,23 @@ function Slider(args) {
     }
 
 
+    var deboucedResizeHandler = debounce(
+        function () {
+            alignToActiveSlide();
+        },
+        500
+    );
+
+    function addResizeListeners() {
+        window.addEventListener('resize', deboucedResizeHandler);
+    }
+
+
+    function removeResizeListeners() {
+        window.addEventListener('resize', deboucedResizeHandler);
+    }
+
+
 
     function checkEvent(evt) {
         if (!evt) {var evt = window.event;}
@@ -559,7 +579,7 @@ function Slider(args) {
         if ($state.activeIndex < ($conf.slides.length - 1)) {
             $state.activeIndex += 1;
         }
-        else {
+        else if ($conf.cycle) {
             $state.activeIndex = 0;
         }
 
@@ -571,7 +591,7 @@ function Slider(args) {
         if ($state.activeIndex > 0) {
             $state.activeIndex -= 1;
         }
-        else {
+        else if ($conf.cycle) {
             $state.activeIndex = ($conf.slides.length - 1);
         }
 
@@ -710,6 +730,36 @@ function Slider(args) {
         }
 
         return merged;
+    }
+
+
+
+    // via https://davidwalsh.name/function-debounce
+    function debounce(func, wait, immediate) {
+	    var timeout;
+
+	    return function() {
+		    var context = this,
+                args = arguments;
+
+		    var later = function() {
+			    timeout = null;
+
+			    if (!immediate) {
+                    func.apply(context, args);
+                }
+		    };
+
+		    var callNow = (immediate && !timeout);
+
+		    clearTimeout(timeout);
+
+		    timeout = setTimeout(later, wait);
+
+		    if (callNow) {
+                func.apply(context, args);
+            }
+	    };
     }
 
 
