@@ -149,10 +149,7 @@
   - more documentation
  */
 
-
-
 function Slider(args) {
-
     /*
      * Init, config, etc.
      */
@@ -165,10 +162,9 @@ function Slider(args) {
             currentX: null,
         };
 
-
-
-    // The return of this function will be merged with the `args`
-    // object, and the result of that merge will become `$conf`.
+    // getDefaultConf :: void -> conf
+    // conf = An object as defined below.
+    // This is the shape of the object expected in the passed `args`.
     function getDefaultConf() {
         return {
             slider: null,
@@ -181,8 +177,6 @@ function Slider(args) {
                 wrap: null,
                 dotClass: null,
             },
-            // counter: null,
-            // counterItemClass: null,
             keyboardEvents: null,
             align: 'center',
             cycle: true,
@@ -190,8 +184,9 @@ function Slider(args) {
         };
     }
 
-
-    // Public methods.
+    // getPublicProperties :: void -> api
+    // api = An object as defined below.
+    // This object is intended to define Slider's public API.
     function getPublicProperties() {
         return {
             goFw: slideForward,
@@ -209,73 +204,60 @@ function Slider(args) {
         };
     }
 
+    // init :: conf -> api?
+    // conf = see note on `getDefaultConf`
+    // api = see note on `getPublicProperties`
+    function init(conf) {
+        $conf = mergeObjects(getDefaultConf(), conf);
 
-
-    function init(args) {
-        $conf = mergeObjects(getDefaultConf(), args);
-
-        // The `slider` property is required.
-        if (($conf.slider) && ($conf.slides)) {
-            if ($conf.slides.constructor !== Array) {
-                $conf.slides = makeEnumerableArray($conf.slides);
-            } 
-
-            $state.activeIndex = 0;
-
-            if ($conf.buttons) {
-                addButtonListeners();
-            }
-
-            if (($conf.pager) &&
-                ($conf.pager.wrap) &&
-                ($conf.pager.dotClass)) {
-                $elems.pager = $conf.pager.wrap;
-                $elems.dots = buildPager($conf.pager.wrap);
-            }
-
-            // For the counter.
-            // this.counter = null;
-            // if ((args.counter) && (args.counterItemClass)) {
-            //     this.counterCase = args.counter;
-            //     this.counterItemClass = args.counterItemClass;
-            //     this.counter = null;
-            //     buildCounter();
-            // }
-
-            if ($conf.autoslide) {
-                startAutoslide();
-            }
-
-            addMouseListeners();
-
-            if ($conf.keyboardEvents) {
-                addKeyboardListeners();
-            }
-
-            addResizeListeners();
-
-            alignToActiveSlide();
-        }
-        else {
+        if ((!$conf.slider) || (!$conf.slides)) {
             console.log("SLIDER ERROR: cannot `init` without an `element`.");
+            return null;
         }
+
+        if ($conf.slides.constructor !== Array) {
+            $conf.slides = makeEnumerableArray($conf.slides);
+        } 
+
+        $state.activeIndex = 0;
+
+        if ($conf.buttons) {
+            addButtonListeners($conf.buttons);
+        }
+
+        if (($conf.pager) &&
+            ($conf.pager.wrap) &&
+            ($conf.pager.dotClass)) {
+            $elems.pager = $conf.pager.wrap;
+            $elems.dots = buildPager($conf.pager.wrap);
+        }
+
+        if ($conf.autoslide) {
+            startAutoslide();
+        }
+
+        addMouseListeners($conf.slider);
+
+        if ($conf.keyboardEvents) {
+            addKeyboardListeners();
+        }
+
+        addResizeListeners();
+        alignToActiveSlide();
 
         return getPublicProperties();
     }
-
-
-
 
 
     /*
      * Element-related functions.
      */
 
+    // buildPager :: Element -> [Element]
     function buildPager(wrap) {
         wrap.innerHTML = '';
 
         var dots = [ ];
-
         for (var o = 0, m = $conf.slides.length; o < m; o++) {
             var dot = document.createElement('div');
             dot.className = $conf.pager.dotClass;
@@ -283,51 +265,30 @@ function Slider(args) {
             wrap.appendChild(dot);
             dots.push(dot);
         }
-
         addPagerListeners(dots);
 
         return dots;
     }
 
-
-    // function buildCounter() {
-    //     var cCrrnt = document.createElement('div');
-    //     var cSlash = document.createElement('div');
-    //     var cTotal = document.createElement('div');
-
-    //     cCrrnt.className = this.counterItemClass;
-    //     cSlash.className = this.counterItemClass;
-    //     cTotal.className = this.counterItemClass;
-
-    //     cCrrnt.innerHTML = ($state.activeIndex + 1);
-    //     cSlash.innerHTML = '/';
-    //     cTotal.innerHTML = $conf.slides.length;
-
-    //     this.counterCase.appendChild(cCrrnt);
-    //     this.counterCase.appendChild(cSlash);
-    //     this.counterCase.appendChild(cTotal);
-
-    //     this.counter = cCrrnt;
-    // }
-
-
-
+    // getLeftAlignedX :: int -> int
     function getLeftAlignedX(index) {
         var x = 0;
 
         for (var o = 0; o < index; o++) {
-            x -= $conf.slides[o].offsetWidth;
+            var style = window.getComputedStyle($conf.slides[o]);
+            x -= ($conf.slides[o].offsetWidth + parseInt(style.marginLeft) + parseInt(style.marginRight));
         }
 
         return x;
     }
 
-
+    // getCenterAlignedX :: int -> int
     function getCenterAlignedX(index) {
         var x = 0;
 
         for (var o = 0; o < index; o++) {
-            x -= $conf.slides[o].offsetWidth;
+            var style = window.getComputedStyle($conf.slides[o]);
+            x -= ($conf.slides[o].offsetWidth + parseInt(style.marginLeft) + parseInt(style.marginRight));
         }
         x -= ($conf.slides[index].offsetWidth / 2);
         x += ($conf.slider.parentNode.offsetWidth / 2);
@@ -335,19 +296,20 @@ function Slider(args) {
         return x;
     }
 
-
+    // getRightAlignedX :: int -> int
     function getRightAlignedX(index) {
         var x = 0;
 
         for (var o = 0; o <= index; o++) {
-            x -= $conf.slides[o].offsetWidth;
+            var style = window.getComputedStyle($conf.slides[o]);
+            x -= ($conf.slides[o].offsetWidth + parseInt(style.marginLeft) + parseInt(style.marginRight));
         }
         x += ($conf.slider.parentNode.offsetWidth);
 
         return x;
     }
 
-
+    // addSlideAtIndex :: (int, Element) -> void
     function addSlideAtIndex(index, elem) {
         if ($conf.slides.length < index) {
             appendSlide(elem);
@@ -373,7 +335,7 @@ function Slider(args) {
         }
     }
 
-
+    // appendSlide :: Element -> void
     function appendSlide(elem) {
         $conf.slides.push(elem);
         $conf.slider.appendChild(elem);
@@ -381,12 +343,12 @@ function Slider(args) {
         alignToActiveSlide();
     }
 
-
+    // prependSlide :: Element -> void
     function prependSlide(elem) {
         addSlideAtIndex(0, elem);
     }
 
-
+    // removeSlide :: int -> void
     function removeSlide(index) {
         var _slides = [ ];
 
@@ -405,32 +367,31 @@ function Slider(args) {
     }
 
 
-
-
-
     /*
      * Event-related functions.
      */
 
-    function addButtonListeners() {
-        if ($conf.buttons.fw) {
-            $conf.buttons.fw.addEventListener('click', handleForwardButtonClick, false);
+    // addButtonListeners :: buttons -> void
+    // buttons = see `buttons` subobject in `getDefaultConf`
+    function addButtonListeners(buttons) {
+        if (buttons.fw) {
+            buttons.fw.addEventListener('click', handleForwardButtonClick, false);
         }
-        if ($conf.buttons.bk) {
-            $conf.buttons.bk.addEventListener('click', handleBackwardButtonClick, false);
+        if (buttons.bk) {
+            buttons.bk.addEventListener('click', handleBackwardButtonClick, false);
         }
     }
 
-
+    // removeButtonListeners :: buttons -> void
+    // buttons = see note on `addButtonListeners`
     function removeButtonListeners() {
-        if ($conf.buttons.fw) {
-            $conf.buttons.fw.removeEventListener('click', handleForwardButtonClick);
+        if (buttons.fw) {
+            buttons.fw.removeEventListener('click', handleForwardButtonClick);
         }
-        if ($conf.buttons.bk) {
-            $conf.buttons.bk.removeEventListener('click', handleBackwardButtonClick);
+        if (buttons.bk) {
+            buttons.bk.removeEventListener('click', handleBackwardButtonClick);
         }
     }
-
 
     function addPagerListeners(dots) {
         for (var o = 0, m = dots.length; o < m; o++) {
@@ -438,35 +399,35 @@ function Slider(args) {
         }
     }
 
-
     function removePagerListeners(dots) {
         for (var o = 0, m = dots.length; o < m; o++) {
             dots[o].removeEventListener('click', handlePagerClick);
         }
     }
 
-
-    function addMouseListeners() {
-        $conf.slider.addEventListener('mouseover', handleMouseover, false);
-        $conf.slider.addEventListener('mouseout', handleMouseout, false);
+    // addMouseListeners :: slider -> void
+    // slider = see `slider` key of `getDefaultConf`
+    function addMouseListeners(slider) {
+        slider.addEventListener('mouseover', handleMouseover, false);
+        slider.addEventListener('mouseout', handleMouseout, false);
     }
 
-
-    function removeMouseListeners() {
-        $conf.slider.removeEventListener('mouseover', handleMouseover);
-        $conf.slider.removeEventListener('mouseout', handleMouseout);
+    // removeMouseListeners :: slider -> void
+    // slider = see note on `addMouseListeners`
+    function removeMouseListeners(slider) {
+        slider.removeEventListener('mouseover', handleMouseover);
+        slider.removeEventListener('mouseout', handleMouseout);
     }
 
-
+    // addKeyboardListeners :: void -> void
     function addKeyboardListeners() {
         window.addEventListener('keydown', handleKeydown, false);
     }
 
-
+    // removeKeyboardListeners :: void -> void
     function removeKeyboardListeners() {
         window.removeEventListener('keydown', handleKeydown);
     }
-
 
     var deboucedResizeHandler = debounce(
         function () {
@@ -475,24 +436,24 @@ function Slider(args) {
         500
     );
 
+    // addResizeListeners :: void -> void
     function addResizeListeners() {
         window.addEventListener('resize', deboucedResizeHandler);
     }
 
-
+    // removeResizeListeners :: void -> void
     function removeResizeListeners() {
         window.addEventListener('resize', deboucedResizeHandler);
     }
 
-
-
+    // checkEvent :: Event -> Event
     function checkEvent(evt) {
         if (!evt) {var evt = window.event;}
         evt.stopPropagation();
         return evt;
     }
 
-
+    // handleKeydown :: Event -> void
     function handleKeydown(evt) {
         evt = checkEvent(evt);
 
@@ -510,7 +471,7 @@ function Slider(args) {
         }
     }
 
-
+    // handleForwardButtonClick :: Event -> void
     function handleForwardButtonClick(evt) {
         slideForward();
 
@@ -519,7 +480,7 @@ function Slider(args) {
         }
     }
 
-
+    // handleBackwardButtonClick :: Event -> void
     function handleBackwardButtonClick(evt) {
         slideBackward();
 
@@ -528,7 +489,7 @@ function Slider(args) {
         }
     }
 
-
+    // handlePagerClick :: Event -> void
     function handlePagerClick(evt) {
         evt = checkEvent(evt);
         var caller = getCallerFromEvent(evt);
@@ -539,21 +500,21 @@ function Slider(args) {
         }
     }
 
-
+    // handleMouseout :: Event -> void
     function handleMouseover(evt) {
         if ($conf.autoslide) {
             stopAutoslide();
         }
     }
 
-
+    // handleMouseout :: Event -> void
     function handleMouseout(evt) {
         if ($conf.autoslide) {
             startAutoslide();
         }
     }
 
-
+    // getCallerFromEvent :: Event -> Element
     function getCallerFromEvent(evt) {
         var caller = (evt.target) ? evt.target : evt.scrElement;
 
@@ -568,13 +529,11 @@ function Slider(args) {
     }
 
 
-
-
-
     /*
      * Slide movement functions.
      */
 
+    // slideForward :: void -> void
     function slideForward() {
         if ($state.activeIndex < ($conf.slides.length - 1)) {
             $state.activeIndex += 1;
@@ -586,7 +545,7 @@ function Slider(args) {
         alignToActiveSlide();
     }
 
-
+    // slideBackward :: void -> void
     function slideBackward() {
         if ($state.activeIndex > 0) {
             $state.activeIndex -= 1;
@@ -598,22 +557,20 @@ function Slider(args) {
         alignToActiveSlide();
     }
 
-
+    // makeActiveSlide :: int -> void
     function makeActiveSlide(n) {
         var x = ((n > 0) && (n < $conf.slides.length)) ? n : 0;
         $state.activeIndex = x;
         alignToActiveSlide();
     }
 
-
+    // alignToActiveSlide :: void -> void
     function alignToActiveSlide() {
         if ($conf.align == 'left') {
             $state.currentX = getLeftAlignedX($state.activeIndex);
-        }
-        else if ($conf.align == 'right') {
+        } else if ($conf.align == 'right') {
             $state.currentX = getRightAlignedX($state.activeIndex);
-        }
-        else { // center
+        } else { // center
             $state.currentX = getCenterAlignedX($state.activeIndex);
         }
 
@@ -629,21 +586,15 @@ function Slider(args) {
                 }
             }
         }
-
-        // if (this.counter) {
-        //     this.counter.innerHTML = ($state.activeIndex + 1);
-        // }
     }
 
-
-
+    // transformByIncrement :: int -> void
     function transformByIncrement(x) {
         $state.currentX += x;
         setTargetTransform($conf.slider, $state.currentX);
     }
 
-
-
+    // setTargetTransform :: (Element, int, int) -> void
     function setTargetTransform(elem, x, y) {
         var xpos = (typeof x == 'undefined') ? '0px' : (x+'px');
         var ypos = (typeof y == 'undefined') ? '0px' : (y+'px');
@@ -655,20 +606,18 @@ function Slider(args) {
     }
 
 
-
-
-
     /*
      * Autoslide functions.
      */
 
+    // startAutoslide :: void -> void
     function startAutoslide() {
         if (!$state.autoslideId) {
-            $state.autoslideId = window.setInterval($state.autoslideId, $conf.autoslide);
+            $state.autoslideId = window.setInterval(slideForward, $conf.autoslide);
         }
     }
 
-
+    // stopAutoslide :: void -> void
     function stopAutoslide() {
         if ($state.autoslideId) {
             window.clearInterval($state.autoslideId);
@@ -676,39 +625,30 @@ function Slider(args) {
         }
     }
 
-
+    // resetAutoslide :: void -> void
     function resetAutoslide() {
         stopAutoslide();
         startAutoslide();
     }
 
 
-
-
-
     /*
      * Utility functions.
      */
 
+    // makeEnumerableArray :: iterable -> [a]
+    // iterable = any object type whose properties can be accessed
+    //   with a numeric index
     function makeEnumerableArray(obj) {
         var arr = [ ];
-
         for (var o = 0, m = obj.length; o < m; o++) {
             arr.push(obj[o]);
         }
-
         return arr;
     }
 
-
+    // mergeObjects :: (object, object) -> object
     function mergeObjects(obj1, obj2) {
-        if ($conf.log) {
-            console.log('Merging this object:');
-            console.log(obj1);
-            console.log('with this one:');
-            console.log(obj2);
-        }
-
         var merged = { };
 
         for (var key in obj1) {
@@ -731,8 +671,6 @@ function Slider(args) {
 
         return merged;
     }
-
-
 
     // via https://davidwalsh.name/function-debounce
     function debounce(func, wait, immediate) {
@@ -761,9 +699,6 @@ function Slider(args) {
             }
 	    };
     }
-
-
-
 
 
     // This needs to stay down here.
