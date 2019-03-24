@@ -20,6 +20,7 @@
     pager: {
       wrap: element,
       dotClass: string,
+      activeClass: string,
     },
     align: "(left|center|right)",
     autoslide: int,
@@ -156,10 +157,12 @@ function Slider(args) {
 
     var $conf = { }, // Retains all the info passed in `args`.
         $elems = { },  // Contains elements created in-class.
-        $state = {  // State info.
+        $run = {  // Running/state info.
             activeIndex: null,
             autoslideId: null,
-            currentX: null,
+            currentOffset: null,
+            getAlignment: null,
+            offsetDimension: null,
         };
 
     // getDefaultConf :: void -> conf
@@ -176,6 +179,7 @@ function Slider(args) {
             pager: {
                 wrap: null,
                 dotClass: null,
+                activeClass: null,
             },
             keyboardEvents: null,
             align: 'center',
@@ -219,7 +223,12 @@ function Slider(args) {
             $conf.slides = makeEnumerableArray($conf.slides);
         } 
 
-        $state.activeIndex = 0;
+        $run.activeIndex = 0;
+
+        if (!setRuntimeAlignmentOffsetConf(getRuntimeAlignmentOffsetConf())) {
+            console.log("SLIDER ERROR: invalid alignment '"+$conf.align+"'");
+            return null;
+        }
 
         if ($conf.buttons) {
             addButtonListeners($conf.buttons);
@@ -248,6 +257,74 @@ function Slider(args) {
         return getPublicProperties();
     }
 
+    // getRuntimeAlignmentOffsetConf :: void -> aligns?
+    // aligns = a 3-item tuple containing:
+    //   0 = function
+    //   1 = (string) dimension
+    //   2 = [(string) dimension]
+    //   3 = function
+    function getRuntimeAlignmentOffsetConf() {
+        if ($conf.align == 'left') {
+            return [
+                getLeftAlignedOffset,
+                'offsetWidth',
+                ['marginLeft', 'marginRight'],
+                setTargetTransformX,
+            ];
+        } else if ($conf.align == 'right') {
+            return [
+                getRightAlignedOffset,
+                'offsetWidth',
+                ['marginLeft', 'marginRight'],
+                setTargetTransformX,
+            ];
+        } else if ($conf.align == 'center') {
+            return [
+                getCenterAlignedOffset,
+                'offsetWidth',
+                ['marginLeft', 'marginRight'],
+                setTargetTransformX,
+            ];
+        } else if ($conf.align == 'top') {
+            return [
+                getLeftAlignedOffset,
+                'offsetHeight',
+                ['marginTop', 'marginBottom'],
+                setTargetTransformY,
+            ];
+        } else if ($conf.align == 'bottom') {
+            return [
+                getRightAlignedOffset,
+                'offsetHeight',
+                ['marginTop', 'marginBottom'],
+                setTargetTransformY,
+            ];
+        } else if ($conf.align == 'middle') {
+            return [
+                getCenterAlignedOffset,
+                'offsetHeight',
+                ['marginTop', 'marginBottom'],
+                setTargetTransformY,
+            ];
+        } else {
+            return null;
+        }
+    }
+
+    // setRuntimeAlignmentOffsetConf :: aligns? -> bool
+    // aligns = see `getRuntimeAlignmentOffsetConf`
+    function setRuntimeAlignmentOffsetConf(aligns) {
+        if ((aligns instanceof Array) &&
+            (aligns.length == 4)) {
+            $run.getAlignment = aligns[0];
+            $run.offsetDimension = aligns[1];
+            $run.offsetMargins = aligns[2];
+            $run.setTargetTransform = aligns[3];
+            return true;
+        }
+        return false;
+    }
+
 
     /*
      * Element-related functions.
@@ -270,45 +347,6 @@ function Slider(args) {
         return dots;
     }
 
-    // getLeftAlignedX :: int -> int
-    function getLeftAlignedX(index) {
-        var x = 0;
-
-        for (var o = 0; o < index; o++) {
-            var style = window.getComputedStyle($conf.slides[o]);
-            x -= ($conf.slides[o].offsetWidth + parseInt(style.marginLeft) + parseInt(style.marginRight));
-        }
-
-        return x;
-    }
-
-    // getCenterAlignedX :: int -> int
-    function getCenterAlignedX(index) {
-        var x = 0;
-
-        for (var o = 0; o < index; o++) {
-            var style = window.getComputedStyle($conf.slides[o]);
-            x -= ($conf.slides[o].offsetWidth + parseInt(style.marginLeft) + parseInt(style.marginRight));
-        }
-        x -= ($conf.slides[index].offsetWidth / 2);
-        x += ($conf.slider.parentNode.offsetWidth / 2);
-
-        return x;
-    }
-
-    // getRightAlignedX :: int -> int
-    function getRightAlignedX(index) {
-        var x = 0;
-
-        for (var o = 0; o <= index; o++) {
-            var style = window.getComputedStyle($conf.slides[o]);
-            x -= ($conf.slides[o].offsetWidth + parseInt(style.marginLeft) + parseInt(style.marginRight));
-        }
-        x += ($conf.slider.parentNode.offsetWidth);
-
-        return x;
-    }
-
     // addSlideAtIndex :: (int, Element) -> void
     function addSlideAtIndex(index, elem) {
         if ($conf.slides.length < index) {
@@ -325,8 +363,8 @@ function Slider(args) {
                 _slides.push($conf.slides[o]);
             }
 
-            if (index <= $state.activeIndex) {
-                $state.activeIndex += 1;
+            if (index <= $run.activeIndex) {
+                $run.activeIndex += 1;
             }
 
             $conf.slides = _slides;
@@ -535,11 +573,10 @@ function Slider(args) {
 
     // slideForward :: void -> void
     function slideForward() {
-        if ($state.activeIndex < ($conf.slides.length - 1)) {
-            $state.activeIndex += 1;
-        }
-        else if ($conf.cycle) {
-            $state.activeIndex = 0;
+        if ($run.activeIndex < ($conf.slides.length - 1)) {
+            $run.activeIndex += 1;
+        } else if ($conf.cycle) {
+            $run.activeIndex = 0;
         }
 
         alignToActiveSlide();
@@ -547,11 +584,10 @@ function Slider(args) {
 
     // slideBackward :: void -> void
     function slideBackward() {
-        if ($state.activeIndex > 0) {
-            $state.activeIndex -= 1;
-        }
-        else if ($conf.cycle) {
-            $state.activeIndex = ($conf.slides.length - 1);
+        if ($run.activeIndex > 0) {
+            $run.activeIndex -= 1;
+        } else if ($conf.cycle) {
+            $run.activeIndex = ($conf.slides.length - 1);
         }
 
         alignToActiveSlide();
@@ -560,38 +596,73 @@ function Slider(args) {
     // makeActiveSlide :: int -> void
     function makeActiveSlide(n) {
         var x = ((n > 0) && (n < $conf.slides.length)) ? n : 0;
-        $state.activeIndex = x;
+        $run.activeIndex = x;
         alignToActiveSlide();
     }
 
     // alignToActiveSlide :: void -> void
     function alignToActiveSlide() {
-        if ($conf.align == 'left') {
-            $state.currentX = getLeftAlignedX($state.activeIndex);
-        } else if ($conf.align == 'right') {
-            $state.currentX = getRightAlignedX($state.activeIndex);
-        } else { // center
-            $state.currentX = getCenterAlignedX($state.activeIndex);
-        }
+        $run.currentOffset = $run.getAlignment($run.activeIndex);
 
-        setTargetTransform($conf.slider, $state.currentX);
+        $run.setTargetTransform($conf.slider, $run.currentOffset);
 
         if ($elems.dots) {
             for (var o = 0, m = $elems.dots.length; o < m; o++) {
-                if (o == $state.activeIndex) {
-                    $elems.dots[o].setAttribute('slider-active-pager-dot', 'y');
+                if (o == $run.activeIndex) {
+                    //$elems.dots[o].setAttribute('slider-active-pager-dot', 'y');
+                    $elems.dots[o].classList.add($conf.pager.activeClass);
                 }
                 else {
-                    $elems.dots[o].removeAttribute('slider-active-pager-dot');
+                    //$elems.dots[o].removeAttribute('slider-active-pager-dot');
+                    $elems.dots[o].classList.remove($conf.pager.activeClass);
                 }
             }
         }
     }
 
+    // getLeftAlignedOffset :: int -> int
+    function getLeftAlignedOffset(index) {
+        var x = 0;
+
+        for (var o = 0; o < index; o++) {
+            var style = window.getComputedStyle($conf.slides[o]);
+            x -= ($conf.slides[o][$run.offsetDimension] + parseInt(style[$run.offsetMargins[0]]) + parseInt(style[$run.offsetMargins[1]]));
+        }
+
+        return x;
+    }
+
+    // getCenterAlignedOffset :: int -> int
+    function getCenterAlignedOffset(index) {
+        var x = 0;
+
+        for (var o = 0; o < index; o++) {
+            var style = window.getComputedStyle($conf.slides[o]);
+            x -= ($conf.slides[o][$run.offsetDimension] + parseInt(style[$run.offsetMargins[0]]) + parseInt(style[$run.offsetMargins[1]]));
+        }
+        x -= ($conf.slides[index][$run.offsetDimension] / 2);
+        x += ($conf.slider.parentNode[$run.offsetDimension] / 2);
+
+        return x;
+    }
+
+    // getRightAlignedOffset :: int -> int
+    function getRightAlignedOffset(index) {
+        var x = 0;
+
+        for (var o = 0; o <= index; o++) {
+            var style = window.getComputedStyle($conf.slides[o]);
+            x -= ($conf.slides[o][$run.offsetDimension] + parseInt(style[$run.offsetMargins[0]]) + parseInt(style[$run.offsetMargins[1]]));
+        }
+        x += ($conf.slider.parentNode[$run.offsetDimension]);
+
+        return x;
+    }
+
     // transformByIncrement :: int -> void
     function transformByIncrement(x) {
-        $state.currentX += x;
-        setTargetTransform($conf.slider, $state.currentX);
+        $run.currentOffset += x;
+        setTargetTransform($conf.slider, $run.currentOffset);
     }
 
     // setTargetTransform :: (Element, int, int) -> void
@@ -605,6 +676,16 @@ function Slider(args) {
         elem.style.transform = 'translate(' + xpos +', ' + ypos + ')';
     }
 
+    // setTargetTransformX :: (Element, int) -> void
+    function setTargetTransformX(elem, x) {
+        setTargetTransform(elem, x, 0);
+    }
+
+    // setTargetTransformY :: (Element, int) -> void
+    function setTargetTransformY(elem, y) {
+        setTargetTransform(elem, 0, y);
+    }
+
 
     /*
      * Autoslide functions.
@@ -612,16 +693,16 @@ function Slider(args) {
 
     // startAutoslide :: void -> void
     function startAutoslide() {
-        if (!$state.autoslideId) {
-            $state.autoslideId = window.setInterval(slideForward, $conf.autoslide);
+        if (!$run.autoslideId) {
+            $run.autoslideId = window.setInterval(slideForward, $conf.autoslide);
         }
     }
 
     // stopAutoslide :: void -> void
     function stopAutoslide() {
-        if ($state.autoslideId) {
-            window.clearInterval($state.autoslideId);
-            $state.autoslideId = null;
+        if ($run.autoslideId) {
+            window.clearInterval($run.autoslideId);
+            $run.autoslideId = null;
         }
     }
 
