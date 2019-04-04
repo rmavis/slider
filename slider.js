@@ -1,155 +1,5 @@
-/*
-  SLIDER
-
-  This is a simple class for building a slideshow. It does very
-  little -- all styling, animation, etc, is handled in the HTML and
-  CSS.
-
-
-  USAGE
-
-  Initialize a new slider by passing Slider an object:
-
-  var slider = new Slider({
-    slider: element,
-    slides: [elements],
-    buttons: {
-      fw: element,
-      bk: element,
-    },
-    pager: {
-      wrap: element,
-      dotClass: string,
-      activeClass: string,
-    },
-    align: "(left|center|right)",
-    autoslide: int,
-  });
-
-  Slider will add event listeners to the `slider` and `button`
-  elements. If `pager` is present, it will also create clickable
-  elements that change the slider state.
-
-  Alignment of the current slide is set by the `align` property. If
-  none of is given, `center` will be assumed.
-
-  If the `autoslide` property is present, it must be the amount of
-  milliseconds to wait before automatically advancing the slides.
-
-  Click-and-drag functionality is handled by an outside library. For
-  Swiper, an initialization could be like:
-
-  new Swiper({
-    target: slider_wrap_elem,
-    onDrag: function (delta) {
-      slider_instance.dragBy(delta.x.inc);
-    },
-    onEnd: function (delta) {
-      if (delta.v.run == 'left') {
-        slider_instance.goFw();
-      }
-      else {
-        slider_instance.goBk();
-      }
-    },
-  });
-
-
-  DEPENDENCIES
-
-  None.
-
-
-  DETAILS
-
-  Sample HTML:
-
-  <div id="banner-slides-wrap">
-    <div id="banner-slides-slider">
-      <div class="banner-slide">
-        <h2 class="slide-txt">Slide 1</h2>
-      </div><div class="banner-slide">
-        <h2 class="slide-txt">Slide 2</h2>
-      </div><div class="banner-slide">
-        <h2 class="slide-txt">Slide 3</h2>
-      </div>
-    </div>
-
-    <div id="banner-slides-pager"></div>
-
-    <div id="banner-controls-wrap">
-      <div class="banner-slides-control-btn" id="banner-slides-control-bk">Backward</div>
-      <div class="banner-slides-control-btn" id="banner-slides-control-fw">Forward</div>
-    </div>
-  </div>
-
-  Sample CSS:
-
-  #banner-slides-wrap {
-    position: relative;
-    margin: 0;
-    padding: 0;
-    width: 100%;
-    height: 100%;
-    overflow: hidden;
-    white-space: nowrap;
-  }
-
-  #banner-slides-slider {
-    position: absolute;
-    height: 100%;
-    width: 100%;
-    top: 0;
-    left: 0;
-    transition: left 0.6s ease;
-  }
-
-  .banner-slide {
-    display: inline-block;
-    position: relative;
-    margin: 0;
-    padding: 0;
-    width: 100%;
-    height: 100%;
-  }
-
-  #banner-slides-pager {
-    display: inline-block;
-    postion: absolute;
-    left: 50%;
-    transform: translate(-50%, 0);
-    bottom: 20px;
-    text-align: center;
-  }
-
-  .banner-pager-dot {
-    position: relative;
-    display: inline-block;
-    margin: 5px;
-    padding: 0;
-    width: 10px;
-    height: 10px;
-    border-radius: 20px;
-    background-color: #FFFFFF;
-    cursor: pointer;
-  }
-
-  .banner-pager-dot[active=y] {
-    background-color: #FF00FF;
-  }
-
-  To remove the stutter/stalls of incremental dragging, add a style rule to the wrap:
-    #banner-slides-wrap[draggable] #banner-slides-slider {
-        transition: none;
-    }
-
-    #HERE
-
-
-  TODO
-  - more documentation
- */
-
+// Slider :: conf -> api?
+// conf, api = see note on `init`
 function Slider(args) {
     /*
      * Init, config, etc.
@@ -170,20 +20,40 @@ function Slider(args) {
     // This is the shape of the object expected in the passed `args`.
     function getDefaultConf() {
         return {
+            // Element
             slider: null,
+            // NodeList or array of Elements
             slides: null,
+            // optional
             buttons: {
+                // Element
                 fw: null,
+                // Element
                 bk: null,
             },
+            // optional
+            // If present, all properties must also be present.
             pager: {
+                // Element
                 wrap: null,
+                // string
                 dotClass: null,
+                // string
                 activeClass: null,
             },
-            keyboardEvents: null,
+            events: {
+                // boolean?
+                useKeyboard: null,
+                // ((int, Element) -> void)?
+                beforeAlign: null,
+                // ((int, Element) -> void)?
+                afterAlign: null,
+            },
+            // string
             align: 'center',
+            // boolean
             cycle: true,
+            // boolean?
             autoslide: null,
         };
     }
@@ -247,7 +117,7 @@ function Slider(args) {
 
         addMouseListeners($conf.slider);
 
-        if ($conf.keyboardEvents) {
+        if ($conf.events.useKeyboard) {
             addKeyboardListeners();
         }
 
@@ -602,21 +472,25 @@ function Slider(args) {
 
     // alignToActiveSlide :: void -> void
     function alignToActiveSlide() {
-        $run.currentOffset = $run.getAlignment($run.activeIndex);
+        if ($conf.events.beforeAlign) {
+            $conf.events.beforeAlign($run.activeIndex, $conf.slides[$run.activeIndex]);
+        }
 
+        $run.currentOffset = $run.getAlignment($run.activeIndex);
         $run.setTargetTransform($conf.slider, $run.currentOffset);
 
         if ($elems.dots) {
             for (var o = 0, m = $elems.dots.length; o < m; o++) {
                 if (o == $run.activeIndex) {
-                    //$elems.dots[o].setAttribute('slider-active-pager-dot', 'y');
                     $elems.dots[o].classList.add($conf.pager.activeClass);
-                }
-                else {
-                    //$elems.dots[o].removeAttribute('slider-active-pager-dot');
+                } else {
                     $elems.dots[o].classList.remove($conf.pager.activeClass);
                 }
             }
+        }
+
+        if ($conf.events.afterAlign) {
+            $conf.events.afterAlign($run.activeIndex, $conf.slides[$run.activeIndex]);
         }
     }
 
@@ -662,7 +536,7 @@ function Slider(args) {
     // transformByIncrement :: int -> void
     function transformByIncrement(x) {
         $run.currentOffset += x;
-        setTargetTransform($conf.slider, $run.currentOffset);
+        $run.setTargetTransform($conf.slider, $run.currentOffset);
     }
 
     // setTargetTransform :: (Element, int, int) -> void

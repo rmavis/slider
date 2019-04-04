@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <link rel="stylesheet" type="text/css" href="styles.css" />
+
+        <script type="text/javascript" src="slider.js"></script>
+        <script type="text/javascript" src="swiper.js"></script>
+
+        <script>
+         var _slider, _swiper;
+
+         function init() {
+             var slider_wrap = document.getElementById('slides__slider'),
+                 slides = slider_wrap.getElementsByClassName('slides__slide');
+
+             _slider = new Slider({
+                 slider: slider_wrap,
+                 slides: slides,
+                 buttons: {
+                     bk: document.getElementById('controls__button--bk'),
+                     fw: document.getElementById('controls__button--fw'),
+                 },
+                 pager: {
+                     wrap: document.getElementById('pager__wrap'),
+                     dotClass: 'pager__item',
+                     activeClass: 'pager__item--active',
+                 },
+                 events: {
+                     useKeyboard: false,
+                     beforeAlign: function (index, element) {
+                         console.log("Will make slide " + (index + 1) + " active.");
+                     },
+                     afterAlign: function (index, element) {
+                         console.log("Made slide " + (index + 1) + " active.");
+                     },
+                 },
+                 align: 'center',
+             });
+
+             _swiper = new Swiper({
+                 target: document.getElementById('slides__wrap'),
+                 onDrag: function (delta) {
+                     _slider.dragBy(delta.x.inc);
+                 },
+                 onEnd: function (delta) {
+                     if (delta.v.over) {
+                         if (delta.v.run == 'left') {
+                             _slider.goFw();
+                         }
+                         else {
+                             _slider.goBk();
+                         }
+                     }
+                     else {
+                         _slider.align();
+                     }
+                 },
+             });
+         }
+
+         // You can add these slides via `append` and `prepend`, eg:
+         // _slider.append(slide_4)
+         var slide_4 = document.createElement('div');
+         slide_4.className = "slides__slide slide-4";
+         slide_4.innerHTML = '<h2 class="slide__copy">Slide 4</h2>';
+
+         var slide_5 = document.createElement('div');
+         slide_5.className = "slides__slide slide-5";
+         slide_5.innerHTML = '<h2 class="slide__copy">Slide 5</h2>';
+
+         window.onload = init;
+        </script>
+    </head>
+
+    <body>
+        <div class="slideshow__wrap">
+            <div class="slides__wrap" id="slides__wrap">
+                <div class="slides__slider" id="slides__slider">
+                    <div class="slides__slide slide-1">
+                        <h2 class="slide__copy">Slide 1</h2>
+                    </div>
+                    <div class="slides__slide slide-2">
+                        <h2 class="slide__copy">Slide 2</h2>
+                    </div>
+                    <div class="slides__slide slide-3">
+                        <h2 class="slide__copy">Slide 3</h2>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pager__wrap" id="pager__wrap"></div>
+
+            <div class="controls__wrap" id="controls__wrap">
+                <div class="controls__button controls__button--fw" id="controls__button--bk">Backward</div>
+                <div class="controls__button controls__button--bk" id="controls__button--fw">Forward</div>
+            </div>
+        </div>
+    </body>
+
+</html>
